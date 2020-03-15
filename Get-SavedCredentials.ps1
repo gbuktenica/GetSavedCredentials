@@ -4,16 +4,21 @@ function Get-SavedCredentials {
         Returns a PSCredential from an encrypted file.
 
     .DESCRIPTION
-        Returns a PSCredential from an encrypted file.
+        Returns a PSCredential from a file encrypted using Windows Data Protection API (DAPI).
+        If the file does not exist the user will be prompted for the username and password the first time.
+        The GPO setting Network Access: Do not allow storage of passwords and credentials for network authentication must be set to Disabled
+        otherwise the password will only persist for the length of the user session.
 
     .PARAMETER Title
         The name of the username and password pair. This allows multiple accounts to be saved such as a normal account and an administrator account.
 
     .PARAMETER VaultPath
-        The file path of the encrypted file for saving the username and password pair.
+        The file path of the encrypted Json file for saving the username and password pair.
+        Default value is c:\users\<USERNAME>\PowerShellHash.json"
 
     .PARAMETER Renew
         Prompts the user for a new password for an existing pair.
+        To be used after a password change.
 
     .EXAMPLE
         Enter-PsSession -ComputerName Computer -Credential (Get-SavedCredentials)
@@ -25,8 +30,9 @@ function Get-SavedCredentials {
         https://github.com/gbuktenica/GetSavedCredentials
 
     .NOTES
-        Author     : Glen Buktenica
-        Change Log : 20200314 Initial Build
+        License      : MIT License
+        Copyright (c): 2020 Glen Buktenica
+        Release      : v1.0.0 20200315
     #>
     [CmdletBinding()]
     Param(
@@ -72,12 +78,24 @@ function Get-SavedCredentials {
         $Json.$Title.password = $secureStringText
         $JsonChanged = $true
     }
+
+    $Username = $Json.$Title.username
+    Try {
+        # Build the PSCredential object and export it.
+        $SecurePassword = $Json.$Title.password | ConvertTo-SecureString -ErrorAction Stop
+        New-Object System.Management.Automation.PSCredential -ArgumentList $Username, $SecurePassword -ErrorAction Stop
+    }
+    catch
+    {
+        # If building the credential failed for any reason delete it and run the function
+        # again which will prompt the user for username and password.
+        $TitleContent = " { `"username`":`"`", `"password`":`"`" }"
+        $Json | Add-Member -Name $Title -value (Convertfrom-Json $TitleContent) -MemberType NoteProperty -Force
+        $Json | ConvertTo-Json -depth 3 | Set-Content $VaultPath -ErrorAction Stop
+        Get-SavedCredentials -Title $Title -VaultPath $VaultPath
+    }
     If ($JsonChanged) {
         # Save the Json object to file if it has changed.
         $Json | ConvertTo-Json -depth 3 | Set-Content $VaultPath -ErrorAction Stop
     }
-    # Build the PSCredential object and export it.
-    $Username = $Json.$Title.username
-    $SecurePassword = $Json.$Title.password | ConvertTo-SecureString
-    New-Object System.Management.Automation.PSCredential -ArgumentList $Username, $SecurePassword -ErrorAction Stop
 }
