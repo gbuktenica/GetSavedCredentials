@@ -11,11 +11,11 @@ function Get-SavedCredentials {
 
     .PARAMETER Title
         The name of the username and password pair. This allows multiple accounts to be saved such as a normal account and an administrator account.
-        Default value is "Default"
+        The default value is "Default"
 
     .PARAMETER VaultPath
         The file path of the encrypted Json file for saving the username and password pair.
-        Default value is "c:\users\<USERNAME>\PowerShellHash.json"
+        Default value is "c:\users\<USERNAME>\SavedCredentialsHash.json"
 
     .PARAMETER Renew
         Prompts the user for a new password for an existing pair.
@@ -32,7 +32,7 @@ function Get-SavedCredentials {
         Returns a default PsCredential object into the Enter-PsSession command.
 
     .EXAMPLE
-        $Credential = Get-SavedCredentials -Title Normal -VaultPath c:\temp\myfile.json
+        $Credential = Get-SavedCredentials -Title Normal -VaultPath c:\temp\myFile.json
         Returns a PsCredential object to to the variable $Credential
 
     .EXAMPLE
@@ -44,13 +44,13 @@ function Get-SavedCredentials {
 
     .NOTES
         License      : MIT License
-        Copyright (c): 2020 Glen Buktenica
+        Copyright (c): 2021 Glen Buktenica
         Release      : v1.1.0 20210413
     #>
     [CmdletBinding()]
     Param(
         [string]$Title = "Default",
-        [string]$VaultPath = "$env:USERPROFILE\PowerShellHash.json",
+        [string]$VaultPath = "$env:USERPROFILE\SavedCredentialsHash.json",
         [switch]$Renew,
         [switch]$SecureString
     )
