@@ -45,7 +45,7 @@ function Get-SavedCredentials {
     .NOTES
         License      : MIT License
         Copyright (c): 2020 Glen Buktenica
-        Release      : v1.1.0 20200318
+        Release      : v1.1.0 20210413
     #>
     [CmdletBinding()]
     Param(
@@ -59,13 +59,11 @@ function Get-SavedCredentials {
         # Create a new Json object if the file does not exist.
         $Json = "{`"$Title`": { `"username`": `"`", `"password`": `"`" }}" | ConvertFrom-Json
         $JsonChanged = $true
-    }
-    else {
+    } else {
         try {
             # Read the file if it already exists
             $Json = Get-Content -Raw -Path $VaultPath | ConvertFrom-Json -ErrorAction Stop
-        }
-         catch {
+        } catch {
             # If the file is corrupt overwrite it.
             $Json = "{`"$Title`": { `"username`": `"`", `"password`": `"`" }}" | ConvertFrom-Json
             $JsonChanged = $true
@@ -85,11 +83,10 @@ function Get-SavedCredentials {
         $JsonChanged = $true
     }
     if ($Json.$Title.password.Length -eq 0 -or $Renew) {
-         #Prompt user for Password if it is not saved.
+        #Prompt user for Password if it is not saved.
         if ($SecureString) {
             $Message = "Enter Secret for> " + $Json.$Title
-        }
-        else {
+        } else {
             $Message = "Enter Password for> " + $Json.$Title.username
         }
         $Json.$Title.password = ((Read-Host $Message -AsSecureString -ErrorAction Stop))
@@ -99,9 +96,7 @@ function Get-SavedCredentials {
         Try {
             # Build the SecureString object and export it.
             $Json.$Title.password | ConvertTo-SecureString -ErrorAction Stop
-        }
-        catch
-        {
+        } catch {
             # If building the SecureString failed for any reason delete it and run the function
             # again which will prompt the user for the secret.
             $TitleContent = " { `"username`":`"`", `"password`":`"`" }"
@@ -109,15 +104,13 @@ function Get-SavedCredentials {
             $Json | ConvertTo-Json -depth 3 | Set-Content $VaultPath -ErrorAction Stop
             Get-SavedCredentials -Title $Title -VaultPath $VaultPath -SecureString
         }
-    }
-    else {
+    } else {
         $Username = $Json.$Title.username
         Try {
             # Build the PSCredential object and export it.
             $SecurePassword = $Json.$Title.password | ConvertTo-SecureString -ErrorAction Stop
             New-Object System.Management.Automation.PSCredential -ArgumentList $Username, $SecurePassword -ErrorAction Stop
-        }
-        catch {
+        } catch {
             # If building the credential failed for any reason delete it and run the function
             # again which will prompt the user for username and password.
             $TitleContent = " { `"username`":`"`", `"password`":`"`" }"
