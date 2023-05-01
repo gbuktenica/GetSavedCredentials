@@ -36,14 +36,15 @@ function Get-SavedCredentials {
     .NOTES
         License      : MIT License
         Copyright (c): 2020 Glen Buktenica
-        Release      : v1.1.0 20220405
+        Release      : v1.1.0 20230501
     #>
     [CmdletBinding()]
     Param(
         [string]$Title = "Default",
         [string]$VaultPath = "$env:USERPROFILE\PowerShellHash.json",
         [switch]$Renew,
-        [switch]$SecureString
+        [switch]$SecureString,
+        [switch]$List
     )
     $JsonChanged = $false
     if (-not (Test-path -Path $VaultPath)) {
@@ -66,54 +67,59 @@ function Get-SavedCredentials {
         $Json | Add-Member -Name $Title -value (Convertfrom-Json $TitleContent) -MemberType NoteProperty
         $JsonChanged = $true
     }
-    if ($SecureString) {
-        if ($Json.$Title.username.Length -eq 0) {
+    if ($List) {
+        $Json.PSObject.Properties.Name
+    } else {
+        if ($SecureString) {
+            if ($Json.$Title.username.Length -eq 0) {
             ($Json.$Title.username) = "SecureString"
-            $JsonChanged = $true
-        }
-    } else {
-        if ($Json.$Title.username.Length -eq 0) {
-            #Prompt user for username if it is not saved.
-            $Message = "Enter User name for> $Title"
-            $Username = Read-Host $Message -ErrorAction Stop
+                $JsonChanged = $true
+            }
+        } else {
+            if ($Json.$Title.username.Length -eq 0) {
+                #Prompt user for username if it is not saved.
+                $Message = "Enter User name for> $Title"
+                $Username = Read-Host $Message -ErrorAction Stop
             ($Json.$Title.username) = $Username
+                $JsonChanged = $true
+            }
+        }
+        if ($Json.$Title.password.Length -eq 0 -or $Renew) {
+            #Prompt user for Password if it is not saved.
+            $Message = "Enter Password for> " + $Json.$Title.username
+            $secureStringPwd = Read-Host $Message -AsSecureString -ErrorAction Stop
+            $secureStringText = $secureStringPwd | ConvertFrom-SecureString
+            $Json.$Title.password = $secureStringText
             $JsonChanged = $true
         }
-    }
-    if ($Json.$Title.password.Length -eq 0 -or $Renew) {
-        #Prompt user for Password if it is not saved.
-        $Message = "Enter Password for> " + $Json.$Title.username
-        $secureStringPwd = Read-Host $Message -AsSecureString -ErrorAction Stop
-        $secureStringText = $secureStringPwd | ConvertFrom-SecureString
-        $Json.$Title.password = $secureStringText
-        $JsonChanged = $true
-    }
 
-    $Username = $Json.$Title.username
-    if ($SecureString) {
-        try {
-            # Export the secure string.
-            $Json.$Title.password | ConvertTo-SecureString -ErrorAction Stop
-        } catch {
-            # If exporting the secure string failed for any reason delete it and run the function
-            # again which will prompt the user for a password.
-            $TitleContent = " { `"username`":`"`", `"password`":`"`" }"
-            $Json | Add-Member -Name $Title -value (Convertfrom-Json $TitleContent) -MemberType NoteProperty -Force
-            $Json | ConvertTo-Json -depth 3 | Set-Content $VaultPath -ErrorAction Stop
-            Get-SavedCredentials -Title $Title -VaultPath $VaultPath -SecureString
-        }
-    } else {
-        try {
-            # Build the PSCredential object and export it.
-            $SecurePassword = $Json.$Title.password | ConvertTo-SecureString -ErrorAction Stop
-            New-Object System.Management.Automation.PSCredential -ArgumentList $Username, $SecurePassword -ErrorAction Stop
-        } catch {
-            # If building the credential failed for any reason delete it and run the function
-            # again which will prompt the user for username and password.
-            $TitleContent = " { `"username`":`"`", `"password`":`"`" }"
-            $Json | Add-Member -Name $Title -value (Convertfrom-Json $TitleContent) -MemberType NoteProperty -Force
-            $Json | ConvertTo-Json -depth 3 | Set-Content $VaultPath -ErrorAction Stop
-            Get-SavedCredentials -Title $Title -VaultPath $VaultPath
+
+        $Username = $Json.$Title.username
+        if ($SecureString) {
+            try {
+                # Export the secure string.
+                $Json.$Title.password | ConvertTo-SecureString -ErrorAction Stop
+            } catch {
+                # If exporting the secure string failed for any reason delete it and run the function
+                # again which will prompt the user for a password.
+                $TitleContent = " { `"username`":`"`", `"password`":`"`" }"
+                $Json | Add-Member -Name $Title -value (Convertfrom-Json $TitleContent) -MemberType NoteProperty -Force
+                $Json | ConvertTo-Json -depth 3 | Set-Content $VaultPath -ErrorAction Stop
+                Get-SavedCredentials -Title $Title -VaultPath $VaultPath -SecureString
+            }
+        } else {
+            try {
+                # Build the PSCredential object and export it.
+                $SecurePassword = $Json.$Title.password | ConvertTo-SecureString -ErrorAction Stop
+                New-Object System.Management.Automation.PSCredential -ArgumentList $Username, $SecurePassword -ErrorAction Stop
+            } catch {
+                # If building the credential failed for any reason delete it and run the function
+                # again which will prompt the user for username and password.
+                $TitleContent = " { `"username`":`"`", `"password`":`"`" }"
+                $Json | Add-Member -Name $Title -value (Convertfrom-Json $TitleContent) -MemberType NoteProperty -Force
+                $Json | ConvertTo-Json -depth 3 | Set-Content $VaultPath -ErrorAction Stop
+                Get-SavedCredentials -Title $Title -VaultPath $VaultPath
+            }
         }
     }
 
@@ -122,6 +128,8 @@ function Get-SavedCredentials {
         $Json | ConvertTo-Json -depth 3 | Set-Content $VaultPath -ErrorAction Stop
     }
 }
+# List all existing secrets
+Get-SavedCredentials -List
 # Get Secure String
 $SecureString = Get-SavedCredentials -Title "TestString" -SecureString
 # Get Credential Object
