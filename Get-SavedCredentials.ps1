@@ -1,3 +1,11 @@
+[CmdletBinding()]
+Param(
+    [string]$Title,
+    [string]$VaultPath,
+    [switch]$Renew,
+    [switch]$SecureString,
+    [switch]$List
+)
 function Get-SavedCredentials {
     <#
     .SYNOPSIS
@@ -128,16 +136,17 @@ function Get-SavedCredentials {
         $Json | ConvertTo-Json -depth 3 | Set-Content $VaultPath -ErrorAction Stop
     }
 }
-# List all existing secrets
-Get-SavedCredentials -List
-# Get Secure String
-$SecureString = Get-SavedCredentials -Title "TestString" -SecureString
-# Get Credential Object
-$Credential = Get-SavedCredentials -Title "TestCredential"
 
-Write-Output "Secure string converted to plain text:"
-ConvertFrom-SecureString $SecureString -AsPlainText
-Write-Output " "
-Write-Output "Username and Plain text password for Credential Object:"
-$Credential.Username
-ConvertFrom-SecureString $Credential.Password -AsPlainText
+$Params = @{
+    Renew        = $Renew
+    SecureString = $SecureString
+    List         = $List
+}
+if ($Title.length -gt 0) {
+    $Params += @{Title = $Title }
+}
+if ($VaultPath.length -gt 0) {
+    $Params += @{VaultPath = $VaultPath}
+}
+
+Get-SavedCredentials @Params
